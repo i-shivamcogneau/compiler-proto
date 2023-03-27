@@ -18,6 +18,10 @@ app.use(cookieParser());
 
 const indexRouter = require('./routes/index');
 app.use('/', indexRouter);
+const dataModelRouter = require('./routes/dataModel');
+app.use('/', dataModelRouter);
+const wfRouter = require('./routes/workflow');
+app.use('/', wfRouter);
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
