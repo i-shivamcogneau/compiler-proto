@@ -43,8 +43,8 @@ router.post('/toWFProducer', (req, res) => {
         logger.write(`constructor(@InjectQueue('${taskitr[i].dequeue_from}Queue') private queue: Queue) {}\n`);
 
         logger.write(`async sendJsonObj(jobsObj) {\n`);
-        logger.write(`jobsObj["transactionObj"]["updatedAt"] = new Date();`);
-        logger.write(`jobsObj["transactionObj"]["eventsTillnow"].push({"task": "task2", "enqueueAt": new Date(), "dequeueAt": "", "status": "enqueue"})`);
+        logger.write(`jobsObj["transactionObj"]["updatedAt"] = new Date();\n`);
+        logger.write(`jobsObj["transactionObj"]["eventsTillnow"].push({"task": "task2", "enqueueAt": new Date(), "dequeueAt": "", "status": "enqueue"});\n`);
 
         logger.write(`await this.queue.add('${taskitr[i].name}Job', {\njobsObj\n}, jobsObj.properties);\n`);
 

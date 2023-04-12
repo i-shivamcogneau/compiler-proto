@@ -12,6 +12,8 @@ router.post('/toClassObj', (req, res) => {
         // flags: 'a' // 'a' means appending (old data will be preserved)
     });
 
+    logger.write(`// From Compiler\n\n`);
+
     var immportToDoc = obj.import;
     for (let i in immportToDoc){
         logger.write(`\nimport ${immportToDoc[i]} from './${immportToDoc[i]}'\n`);
@@ -79,6 +81,9 @@ router.post('/toMongoSchema', (req, res) => {
     var obj = req.body;
     var logger = fs.createWriteStream(`./${obj.name}.schema.ts`);
 
+    logger.write(`// From Compiler\n\n`);
+
+    logger.write(`import * as lcp from './verdisWrapper';\n`);
     logger.write(`import { Prop, Schema, SchemaFactory, raw } from "@nestjs/mongoose";\nimport { Document } from 'mongoose';\n`);
 
     var immportToDoc = obj.import;
@@ -109,9 +114,9 @@ router.post('/toMongoSchema', (req, res) => {
 
         if(objvars[i].autoGen){
             if(objvars[i].autoGenType == "uuid")
-                logger.write(`, default: verdis.uuid_v4()`);
+                logger.write(`, default: lcp.uuid()`);
             else if(objvars[i].autoGenType == "date-time")
-                logger.write(`, default: new Date()`);
+                logger.write(`, default: lcp.date()`);
             else if(objvars[i].autoGenType == "unique-number")
                 logger.write(`, default: new Date().valueOf()`);
         }
@@ -147,8 +152,10 @@ router.post('/ObjServ', (req, res) => {
     var obj = req.body;
     var logger = fs.createWriteStream(`./${obj.name}.service.ts`);
 
+    logger.write(`// From Compiler\n\n`);
+
     logger.write(`import { Injectable } from '@nestjs/common';\nimport { Model } from "mongoose";\nimport { InjectModel } from "@nestjs/mongoose";\n`);
-    logger.write(`import { ${obj.name}_MODEL, ${obj.name}Document } from './${obj.name}.schema';\n\n`);
+    logger.write(`import { ${obj.name}_MODEL, ${obj.name}Document } from './schemas/${obj.name}.schema';\n\n`);
 
     logger.write(`@Injectable()\nexport class ${obj.name}Service {\nconstructor(\n`);
     logger.write(`@InjectModel(${obj.name}_MODEL) private readonly ${obj.name}Model: Model<${obj.name}Document>\n) {}\n\n`)
@@ -162,6 +169,175 @@ router.post('/ObjServ', (req, res) => {
     logger.write(`return updatedJob;\n`);
     logger.write(`}\n`);
 
+    logger.write(`async DeleteObj(req) {\n`);
+    logger.write(`const result = await this.${obj.name}Model.deleteOne(req.filter);\n`);
+    logger.write(`return result.deletedCount === 0 ? false : 'Object deleted';\n`)
+    logger.write(`}\n`);
+
+    logger.write(`async GetObj(req) {\n`);
+    logger.write(`const getObj = await this.${obj.name}Model.findOne(req.filter);\n`)
+    logger.write(`return !getObj ? false : getObj;\n`);
+    logger.write(`}\n`);
+
     logger.write(`}\n`);
     res.send({message: 'Maybe Created Obj Service ts file'});
+});
+
+
+
+// creates FrameworkObjectService.ts file to connect all objects services with a simple call mentioning object name and data
+// req is array of all object names
+router.post('/ObjFWServ', (req, res) => {
+    var obj = req.body;
+    var logger = fs.createWriteStream(`./DataModelFramework.ts`);
+
+    logger.write(`// From Compiler\n\n`);
+
+    logger.write(`import { Injectable } from '@nestjs/common';\n`);
+    
+    var names = obj.names;
+    for (let i in names){
+        logger.write(`import { ${names[i]}Service } from "./${names[i]}.service";\n`)
+    }
+
+    logger.write(`\n@Injectable()\nexport class FrameworkObjectService {\n`);
+    logger.write(`constructor(`);
+
+    for (let i in names){
+        if(i>0)
+            logger.write(`,`);
+
+        logger.write(`\tprivate ${names[i]}Service:${names[i]}Service\n`)
+    }
+    logger.write(`){}\n`);
+
+    //////////////
+    logger.write(`create(objName, data={}) {\n`);
+
+    logger.write(`const ObjManipMap = {`);
+    for (let i in names){
+        if(i>0)
+            logger.write(`,`);
+        
+        logger.write(`"${names[i]}" : this.${names[i]}Service.PostObj(data)\n`)
+    }
+    logger.write('};\n');
+
+    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write('}\n');
+
+    //////////////
+    logger.write(`get(objName, data={}) {\n`);
+
+    logger.write(`const ObjManipMap = {`);
+    for (let i in names){
+        if(i>0)
+            logger.write(`,`);
+        
+        logger.write(`"${names[i]}" : this.${names[i]}Service.GetObj(data)\n`)
+    }
+    logger.write('};\n');
+
+    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write('}\n');
+
+
+    //////////////
+    logger.write(`put(objName, data={}) {\n`);
+
+    logger.write(`const ObjManipMap = {`);
+    for (let i in names){
+        if(i>0)
+            logger.write(`,`);
+        
+        logger.write(`"${names[i]}" : this.${names[i]}Service.PutObj(data)\n`)
+    }
+    logger.write('};\n');
+
+    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write('}\n');
+
+
+
+    //////////////
+    logger.write(`delete(objName, data={}) {\n`);
+
+    logger.write(`const ObjManipMap = {`);
+    for (let i in names){
+        if(i>0)
+            logger.write(`,`);
+        
+        logger.write(`"${names[i]}" : this.${names[i]}Service.DeleteObj(data)\n`)
+    }
+    logger.write('};\n');
+
+    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write('}\n');
+
+
+    logger.write('}\n');
+    logger.end();
+
+    res.send({message: 'Maybe Created Obj framework ts file'});
+});
+
+
+// creates index.ts file to export all service file to app.module
+// req is array of all object names
+router.post('/Objindex', (req, res) => { 
+    var obj = req.body;
+    var logger = fs.createWriteStream(`./index.service.ts`);
+    logger.write(`// From Compiler\n\n`);
+
+    logger.write(`import { FrameworkObjectService } from "./DataModelFramework";\n`)
+
+    var names = obj.names;
+    for (let i in names){
+        logger.write(`import { ${names[i]}Service } from "./${names[i]}.service";\n`);
+    }
+    
+    logger.write('\nexport const ObjServices = [FrameworkObjectService');
+
+    for (let i in names){
+        logger.write(`, ${names[i]}Service `);
+    }
+    logger.write('];');
+
+    logger.end();
+
+    res.send({message: 'Maybe Created index.service ts file'});
+});
+
+
+
+
+// creates mongoose-model file to model export all schema files to app.module
+// req is array of all object names
+router.post('/SchemaModel', (req, res) => { 
+    var obj = req.body;
+    var logger = fs.createWriteStream(`./mongoose-models.module.ts`);
+    logger.write(`// From Compiler\n\n`);
+
+    logger.write(`import { Module, Global } from "@nestjs/common";\nimport { MongooseModule } from "@nestjs/mongoose";\n`)
+
+    var names = obj.names;
+    for (let i in names){
+        logger.write(`import { ${names[i]}_MODEL, ${names[i]}Schema } from "./${names[i]}.schema";\n`);
+    }
+     
+    logger.write('\nconst MODELS = [\n');
+
+    for (let i in names){
+        logger.write(`{ name: ${names[i]}_MODEL, schema: ${names[i]}Schema },\n`);
+    }
+    logger.write('];\n');
+
+    logger.write(`\n@Global()\n@Module({\n`);
+    logger.write(`imports: [MongooseModule.forFeature(MODELS)],\nexports: [MongooseModule],\n})\n`);
+
+    logger.write(`export class MongooseModelsModule {}`)
+
+    logger.end();
+
+    res.send({message: 'Maybe Created mongoose models ts file'});
 });
