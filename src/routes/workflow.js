@@ -11,17 +11,22 @@ router.post('/toWFConsumer', (req, res) => {
     });
     logger.write(`// From Compiler\n\n`);
 
-    logger.write('import { Process, Processor } from "@nestjs/bull";\nimport { Job } from "bull";\n\n');
+    logger.write('import { Process, Processor } from "@nestjs/bull";\nimport { Job } from "bull";\nimport { FrameworkService } from "./TaskQueueFramework";\n\n');
 
     var taskitr = obj.task;
     for (let i in taskitr){
         logger.write(`@Processor('${taskitr[i].dequeue_from}Queue')\n`)
         logger.write(`export class ${taskitr[i].name}Consumer {\n`);
+        logger.write(`constructor (private readonly frameworkService: FrameworkService){}\n`);
+
         logger.write(`@Process('${taskitr[i].name}Job')\n`)
         logger.write(`async ${taskitr[i].name}OperationJob(job:Job<unknown>){\n`)
         
         logger.write(`${taskitr[i].code}\n`)
         
+        if(taskitr.length-1 != i)
+            logger.write(`this.frameworkService.DoNext(job, "${taskitr[i].name}")\n`)
+
         logger.write('}\n')
         logger.write('}\n')
     }
@@ -97,12 +102,14 @@ router.post('/toWFFramework', (req, res) => {
     }
     logger.write('};\n');
 
-    logger.write(`return await QueueMap[lastTask]();`);
+    logger.write(`if (lastTask in QueueMap)\n`)
+    logger.write(`\treturn await QueueMap[lastTask]();\n\n`);
+    logger.write(`return "task not present";`)
 
     logger.write('}\n');
     logger.write('}\n');
     logger.end();
-    res.send({message: 'Hola world'});
+    res.send({message: 'may be created workflow for task and queue'});
 });
 
 // req of object contains:
