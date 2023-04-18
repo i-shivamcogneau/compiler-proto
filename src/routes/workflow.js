@@ -44,11 +44,9 @@ router.post('/toWFProducer', (req, res) => {
         logger.write(`export class ${taskitr[i].dequeue_from}ProducerService {\n`);
         logger.write(`constructor(@InjectQueue('${taskitr[i].dequeue_from}Queue') private queue: Queue) {}\n`);
 
-        logger.write(`async sendJsonObj(jobsObj) {\n`);
-        logger.write(`jobsObj["transactionObj"]["updatedAt"] = new Date();\n`);
-        logger.write(`jobsObj["transactionObj"]["eventsTillnow"].push({"task": "task2", "enqueueAt": new Date(), "dequeueAt": "", "status": "enqueue"});\n`);
-
-        logger.write(`await this.queue.add('${taskitr[i].name}Job', {\njobsObj\n}, jobsObj.properties);\n`);
+        logger.write(`async sendJsonObj(transacObj) {\n`);
+        
+        logger.write(`await this.queue.add('${taskitr[i].name}Job', { transacObj });\n`);
 
         logger.write(`return 'maybe added to the queue';`);        
         logger.write('}\n')
@@ -144,4 +142,28 @@ router.post('/TaskQueueindex', (req, res) => {
     logger.end();
 
     res.send({message: 'Maybe Created index.TQservice ts file'});
+});
+
+
+// req of object contains:
+// 1. array of dequeue_from
+// 2. workflow's name
+// eg: {workflowname: "", arr_dequeue_from: []}
+router.post('/QueueNameindex', (req, res) => {
+    var obj = req.body;
+    var logger = fs.createWriteStream(`./${obj.workflowname}queues.ts`);
+    logger.write(`// From Compiler\n\n`);
+    
+    logger.write(`\nexport const ${obj.workflowname}queues = [\n`);
+
+
+    for (let i in obj.arr_dequeue_from){
+        logger.write(`\t{ name: '${obj.arr_dequeue_from[i]}Queue' ,},\n`);
+    }
+
+    logger.write(']');
+
+    logger.end();
+
+    res.send({message: 'Maybe Created workflow Queues ts file'});
 });
