@@ -219,11 +219,11 @@ router.post('/ObjFWServ', (req, res) => {
         if(i>0)
             logger.write(`,`);
         
-        logger.write(`"${names[i]}" : this.${names[i]}Service.PostObj(data)\n`)
+        logger.write(`"${names[i]}" : ()=> this.${names[i]}Service.PostObj(data)\n`)
     }
     logger.write('};\n');
 
-    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write(`return ObjManipMap[objName]();\n`);
     logger.write('}\n');
 
     //////////////
@@ -234,11 +234,11 @@ router.post('/ObjFWServ', (req, res) => {
         if(i>0)
             logger.write(`,`);
         
-        logger.write(`"${names[i]}" : this.${names[i]}Service.GetObj(data)\n`)
+        logger.write(`"${names[i]}" : ()=> this.${names[i]}Service.GetObj(data)\n`)
     }
     logger.write('};\n');
 
-    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write(`return ObjManipMap[objName]();\n`);
     logger.write('}\n');
 
 
@@ -250,11 +250,11 @@ router.post('/ObjFWServ', (req, res) => {
         if(i>0)
             logger.write(`,`);
         
-        logger.write(`"${names[i]}" : this.${names[i]}Service.PutObj(data)\n`)
+        logger.write(`"${names[i]}" : ()=> this.${names[i]}Service.PutObj(data)\n`)
     }
     logger.write('};\n');
 
-    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write(`return ObjManipMap[objName]();\n`);
     logger.write('}\n');
 
 
@@ -267,11 +267,11 @@ router.post('/ObjFWServ', (req, res) => {
         if(i>0)
             logger.write(`,`);
         
-        logger.write(`"${names[i]}" : this.${names[i]}Service.DeleteObj(data)\n`)
+        logger.write(`"${names[i]}" : ()=> this.${names[i]}Service.DeleteObj(data)\n`)
     }
     logger.write('};\n');
 
-    logger.write(`return ObjManipMap[objName];\n`);
+    logger.write(`return ObjManipMap[objName]();\n`);
     logger.write('}\n');
 
 

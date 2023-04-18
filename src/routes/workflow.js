@@ -9,6 +9,7 @@ router.post('/toWFConsumer', (req, res) => {
     var logger = fs.createWriteStream(`./${obj.workflow.name}.consumer.ts`, {
         // flags: 'a' // 'a' means appending (old data will be preserved)
     });
+    logger.write(`// From Compiler\n\n`);
 
     logger.write('import { Process, Processor } from "@nestjs/bull";\nimport { Job } from "bull";\n\n');
 
@@ -33,6 +34,7 @@ router.post('/toWFConsumer', (req, res) => {
 router.post('/toWFProducer', (req, res) => {
     var obj = req.body;
     var logger = fs.createWriteStream(`./${obj.workflow.name}.producer.ts`);
+    logger.write(`// From Compiler\n\n`);
 
     logger.write(`import { InjectQueue } from '@nestjs/bull';\nimport { Injectable } from '@nestjs/common';\nimport { Queue } from 'bull';\n\n`);
     
@@ -61,6 +63,7 @@ router.post('/toWFProducer', (req, res) => {
 router.post('/toWFFramework', (req, res) => {
     var obj = req.body;
     var logger = fs.createWriteStream(`./TaskQueueFramework.ts`);
+    logger.write(`// From Compiler\n\n`);
 
     logger.write(`import { Injectable } from '@nestjs/common';\n`);
     
@@ -69,7 +72,7 @@ router.post('/toWFFramework', (req, res) => {
         logger.write(`import { ${taskitr[i].dequeue_from}ProducerService } from "./${obj.workflow.name}.producer";\n`)
     }
     
-    logger.write(`@Injectable()\nexport class FrameworkService {\n`);
+    logger.write(`\n@Injectable()\nexport class FrameworkService {\n`);
     logger.write(`constructor(`);
     for (let i in taskitr){
         if(i>0)
@@ -79,7 +82,7 @@ router.post('/toWFFramework', (req, res) => {
     }
     logger.write(`){}\n`);
 
-    logger.write(`DoNext(obj) {\n`);
+    logger.write(`async DoNext(transacobj, lastTask) {\n`);
 
 
     logger.write(`const QueueMap = {`);
@@ -89,14 +92,56 @@ router.post('/toWFFramework', (req, res) => {
         if(i>0)
             logger.write(`,`);
         
-        logger.write(`"${taskitr[i].name}" : this.${taskitr[i].enqueue_to}ProducerService.sendJsonObj(obj)\n`)
+        if(i == 0)
+            logger.write(`"initial" : ()=> this.${taskitr[i].dequeue_from}ProducerService.sendJsonObj(transacobj),\n`);
+
+        logger.write(`"${taskitr[i].name}" : ()=> this.${taskitr[i].enqueue_to}ProducerService.sendJsonObj(transacobj)\n`);
     }
     logger.write('};\n');
 
-    logger.write(`QueueMap[obj.lastTask];`);
+    logger.write(`return await QueueMap[lastTask]();`);
 
     logger.write('}\n');
     logger.write('}\n');
     logger.end();
     res.send({message: 'Hola world'});
+});
+
+// req of object contains:
+// 1. array of dequeue_from
+// 2. array of tasks
+// eg: {workflowname: "", arr_dequeue_from: [], arr_tasks: []}
+router.post('/TaskQueueindex', (req, res) => {
+    var obj = req.body;
+    var logger = fs.createWriteStream(`./index.TQservice.ts`);
+    logger.write(`// From Compiler\n\n`);
+
+    logger.write(`import { FrameworkService } from "./TaskQueueFramework";\n`)
+
+    // dequeue_from for queue 
+    // task names accordingly
+    for (let i in obj.arr_dequeue_from){
+        logger.write(`import { ${obj.arr_dequeue_from[i]}ProducerService } from "./${obj.workflowname}.producer";\n`);
+    }
+
+    for (let i in obj.arr_tasks){
+        logger.write(`import { ${obj.arr_tasks[i]}Consumer } from "./${obj.workflowname}.consumer";\n`);
+    }
+    
+    logger.write('\nexport const TaskQueuesServices = [FrameworkService');
+
+
+    for (let i in obj.arr_dequeue_from){
+        logger.write(`, ${obj.arr_dequeue_from[i]}ProducerService `);
+    }
+
+    for (let i in obj.arr_tasks){
+        logger.write(`, ${obj.arr_tasks[i]}Consumer `);
+    }
+
+    logger.write('];');
+
+    logger.end();
+
+    res.send({message: 'Maybe Created index.TQservice ts file'});
 });
