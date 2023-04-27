@@ -118,7 +118,7 @@ router.post('/toWFFramework', (req, res) => {
 // eg: {workflowname: "", arr_dequeue_from: [], arr_tasks: []}
 router.post('/TaskQueueindex', (req, res) => {
     var obj = req.body;
-    var logger = fs.createWriteStream(`./index.TQservice.ts`);
+    var logger = fs.createWriteStream(`./${obj.workflowname}index.TQservice.ts`);
     logger.write(`// From Compiler\n\n`);
 
     logger.write(`import { FrameworkService } from "./TaskQueueFramework";\n`)
@@ -133,7 +133,7 @@ router.post('/TaskQueueindex', (req, res) => {
         logger.write(`import { ${obj.arr_tasks[i]}Consumer } from "./${obj.workflowname}.consumer";\n`);
     }
     
-    logger.write('\nexport const TaskQueuesServices = [FrameworkService');
+    logger.write(`\nexport const ${obj.workflowname}TaskQueuesServices = [FrameworkService`);
 
 
     for (let i in obj.arr_dequeue_from){
@@ -156,7 +156,7 @@ router.post('/TaskQueueindex', (req, res) => {
 // 1. array of dequeue_from
 // 2. workflow's name
 // eg: {workflowname: "", arr_dequeue_from: []}
-router.post('/QueueNameindex', (req, res) => {
+router.post('/WFQueueNameindex', (req, res) => {
     var obj = req.body;
     var logger = fs.createWriteStream(`./${obj.workflowname}queues.ts`);
     logger.write(`// From Compiler\n\n`);
@@ -173,4 +173,55 @@ router.post('/QueueNameindex', (req, res) => {
     logger.end();
 
     res.send({message: 'Maybe Created workflow Queues ts file'});
+});
+
+// array of workflow 
+// wfnames = [wf1, wf2]
+router.post('/MainQueueNameindex', (req, res) => {
+    var obj = req.body;
+    var logger = fs.createWriteStream(`./MainWorkFlowqueues.ts`);
+    logger.write(`// From Compiler\n\n`);
+    
+    for(let i in obj.wfnames){
+        logger.write(`import { ${obj.wfnames[i]}queues } from './${obj.wfnames[i]}queues'\n`);
+    }
+    
+    logger.write(`\nexport const MainQueuesIdx = [\n`);
+
+
+    for (let i in obj.wfnames){
+        logger.write(`\t...${obj.wfnames[i]}queues,`);
+    }
+
+    logger.write('\n]');
+
+    logger.end();
+
+    res.send({message: 'Maybe Created main Queues ts file'});
+});
+
+
+// array of workflow 
+// wfnames = [wf1, wf2]
+router.post('/MainTaskQueueindex', (req, res) => {
+    var obj = req.body;
+    var logger = fs.createWriteStream(`./MainTaskQueueindex.ts`);
+    logger.write(`// From Compiler\n\n`);
+    
+    for(let i in obj.wfnames){
+        logger.write(`import { ${obj.wfnames[i]}TaskQueuesServices } from './${obj.wfnames[i]}index.TQservice'\n`);
+    }
+    
+    logger.write(`\nexport const MainTaskQueuesServices = [\n`);
+
+
+    for (let i in obj.wfnames){
+        logger.write(`\t...${obj.wfnames[i]}TaskQueuesServices,`);
+    }
+
+    logger.write('\n]');
+
+    logger.end();
+
+    res.send({message: 'Maybe Created main Task Queue service ts file'});
 });
