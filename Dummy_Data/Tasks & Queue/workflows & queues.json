@@ -1,0 +1,6 @@
+{
+    "workflowname": "GateEntryProc",
+    "arr_dequeue_from": ["TruckatGate", "DocToDo", "NowPark"],
+    "arr_tasks": ["TruckDocColl", "DocVeri", "AllotParkSlot"],
+    "wfnames":["AddStoreDetails","GateEntryProc"]
+}

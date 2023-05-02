@@ -228,6 +228,7 @@ router.post('/ObjFWServ', (req, res) => {
 
     //////////////
     logger.write(`get(objName, data={}) {\n`);
+    logger.write(`var tmp = data;\ndata ={};\ndata["filter"] = tmp;`);
 
     logger.write(`const ObjManipMap = {`);
     for (let i in names){
@@ -244,7 +245,8 @@ router.post('/ObjFWServ', (req, res) => {
 
     //////////////
     logger.write(`put(objName, data={}) {\n`);
-
+    logger.write(`var tmp = data;\ndata ={};\ndata["filter"] = tmp;`);
+    
     logger.write(`const ObjManipMap = {`);
     for (let i in names){
         if(i>0)
@@ -261,7 +263,8 @@ router.post('/ObjFWServ', (req, res) => {
 
     //////////////
     logger.write(`delete(objName, data={}) {\n`);
-
+    logger.write(`var tmp = data;\ndata ={};\ndata["filter"] = tmp;`);
+    
     logger.write(`const ObjManipMap = {`);
     for (let i in names){
         if(i>0)

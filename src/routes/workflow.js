@@ -11,22 +11,31 @@ router.post('/toWFConsumer', (req, res) => {
     });
     logger.write(`// From Compiler\n\n`);
 
-    logger.write('import { Process, Processor } from "@nestjs/bull";\nimport { Job } from "bull";\nimport { FrameworkService } from "./TaskQueueFramework";\n\n');
+    logger.write('import { Process, Processor } from "@nestjs/bull";\nimport { Job } from "bull";\nimport { FrameworkService } from "./TaskQueueFramework";\n');
+    logger.write('import { FrameworkObjectService } from "../DataModel/DataModelFramework";\nimport { verdis_transaction } from "../Framework/transactionObj/transaction.framework";\n\n')
+
 
     var taskitr = obj.task;
     for (let i in taskitr){
         logger.write(`@Processor('${taskitr[i].dequeue_from}Queue')\n`)
         logger.write(`export class ${taskitr[i].name}Consumer {\n`);
-        logger.write(`constructor (private readonly frameworkService: FrameworkService){}\n`);
+        logger.write(`constructor (private readonly frameworkService: FrameworkService,\nprivate readonly frameworkObjectService: FrameworkObjectService,\nprivate readonly verdis_transaction: verdis_transaction){}\n`);
 
         logger.write(`@Process('${taskitr[i].name}Job')\n`)
         logger.write(`async ${taskitr[i].name}OperationJob(job:Job<unknown>){\n`)
         
+        logger.write(`var Obj = job.data["transacObj"];\n`);
+        logger.write(`Obj.Transaction_Obj = await this.verdis_transaction.addEvents({"task_event":"Start","task_name":"${taskitr[i].name}","task_status":""} , Obj.Transaction_Obj.uuid);\n\n`);
+
         logger.write(`${taskitr[i].code}\n`)
         
-        if(taskitr.length-1 != i)
-            logger.write(`this.frameworkService.DoNext(job, "${taskitr[i].name}")\n`)
+        logger.write(`\nObj.Transaction_Obj = await this.verdis_transaction.addEvents({"task_event":"End","task_name":"${taskitr[i].name}","task_status":""} , Obj.Transaction_Obj.uuid);\n\n`);
 
+        if(taskitr.length-1 != i)
+            logger.write(`this.frameworkService.DoNext(Obj, "${taskitr[i].name}")\n`)
+        else
+            logger.write(`console.log(Obj.Transaction_Obj.uuid);\n`)
+        
         logger.write('}\n')
         logger.write('}\n')
     }
@@ -75,28 +84,37 @@ router.post('/toWFFramework', (req, res) => {
         logger.write(`import { ${taskitr[i].dequeue_from}ProducerService } from "./${obj.workflow.name}.producer";\n`)
     }
     
+    logger.write(`import { verdis_transaction } from '../Framework/transactionObj/transaction.framework';\n\n`);
+
     logger.write(`\n@Injectable()\nexport class FrameworkService {\n`);
     logger.write(`constructor(`);
     for (let i in taskitr){
-        if(i>0)
-            logger.write(`,`);
+        // if(i>0)
+        //     logger.write(`,`);
 
-        logger.write(`private ${taskitr[i].dequeue_from}ProducerService:${taskitr[i].dequeue_from}ProducerService\n`)
+        logger.write(`private ${taskitr[i].dequeue_from}ProducerService:${taskitr[i].dequeue_from}ProducerService,\n`)
     }
+    logger.write(`private readonly verdis_transaction: verdis_transaction`)
     logger.write(`){}\n`);
 
     logger.write(`async DoNext(transacobj, lastTask) {\n`);
 
+    logger.write(`if(lastTask == "initial"){\n
+        transacobj = {"Transaction_Obj": await this.verdis_transaction.create(), "data": transacobj}
+    \n}`)
 
     logger.write(`const QueueMap = {`);
     for (let i in taskitr){
-        if(parseInt(i) === taskitr.length -1)
+        if(parseInt(i) === taskitr.length -1 && i!=0)
             break
         if(i>0)
             logger.write(`,`);
         
         if(i == 0)
             logger.write(`"initial" : ()=> this.${taskitr[i].dequeue_from}ProducerService.sendJsonObj(transacobj),\n`);
+        
+        if(i == 0 && taskitr.length == 1)
+            break;
 
         logger.write(`"${taskitr[i].name}" : ()=> this.${taskitr[i].enqueue_to}ProducerService.sendJsonObj(transacobj)\n`);
     }
@@ -225,3 +243,19 @@ router.post('/MainTaskQueueindex', (req, res) => {
 
     res.send({message: 'Maybe Created main Task Queue service ts file'});
 });
+
+
+// Creating directories for each workflows
+// wfnames = [wf1, wf2]
+router.post('/WFDirCrt', (req, res) => {
+    var obj = req.body;
+    
+    for(let i in obj.wfnames){
+        if (!fs.existsSync(obj.wfnames[i]+'_WorkFlowFolder')){
+            fs.mkdirSync(obj.wfnames[i]+'_WorkFlowFolder');
+        }
+    }
+    
+    res.send({message: 'Maybe Created WF Directories'});
+});
+
